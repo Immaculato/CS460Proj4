@@ -14,6 +14,10 @@ class Node:
     def printNode(self):
         print "featureIndex:", self.featureIndex, "featureMin/Max:", self.featureMin, self.featureMax, "label:", self.label,
 
+    def __init__(self):
+        self.weights = list()
+        self.forwardNodes = list()
+
 
 #this class is only designed to work for the data in this project.
 class MultilayerPerceptron:
@@ -25,6 +29,8 @@ class MultilayerPerceptron:
     distinctClassLabels = set()
     unbranchedFeatures = set()
     rootTreeNode = Node()
+    weightsMatrix1 = None
+    weightsMatrix2 = None
 
     '''
     def __debugPrint(self):
@@ -74,7 +80,7 @@ class MultilayerPerceptron:
         for i in range(50):
             hiddenNodes.append(Node())
             hiddenNodes[i].forwardNodes.append(outputNode)
-            hiddenNodes[i].weights.append(0.5)
+            hiddenNodes[i].weights.append(0.0)
             weightsList2.append(hiddenNodes[i].weights)
 
         #make the input nodes, then connect each input node to each hidden node
@@ -83,12 +89,40 @@ class MultilayerPerceptron:
             self.inputNodes.append(Node())
             for j in range(50):
                 self.inputNodes[i].forwardNodes.append(hiddenNodes[j])
-                self.inputNodes[i].weights.append(0.5)
+                self.inputNodes[i].weights.append(0.0)
             weightsList1.append(self.inputNodes[i].weights)
 
         #build the weight matrix for each pair of layers.
-        print(np.matrix(weightsList2))
-        print(np.matrix(weightsList1))
+        self.weightsMatrix2 = np.matrix(weightsList2).T
+        self.weightsMatrix1 = np.matrix(weightsList1).T
+
+        for i in range(len(self.inputs)):
+            predictionTest = self.__prediction(i)
+            print 'prediction for input', i, predictionTest
+
+    def __prediction(self, inputIndex):
+        #print 'matrix 1 shape', self.weightsMatrix1.shape
+        #print 'matrix 2 shape', self.weightsMatrix2.shape
+        inputVector = self.weightsMatrix1*np.matrix(self.inputs[inputIndex]).T
+        vectorSize = len(inputVector)
+
+        #run sigmoid on the input vector.
+        for i in range(vectorSize):
+            inputVector[i, 0] = self.__sigmoid(inputVector[i, 0])
+
+        #now, run these inputs through the next layer to get the final answer.
+        inputVector = self.weightsMatrix2*inputVector
+        vectorSize = len(inputVector)
+        for i in range(vectorSize):
+            inputVector[i, 0] = self.__sigmoid(inputVector[i, 0])
+
+        return inputVector[0, 0]
+
+
+    def __sigmoid(self, inputVal):
+        return 1.0/(1+np.e**-inputVal)
+
+
         '''
         #make a list of the example indexes to start ID3 (all of them)
         examplesIndexList = list()
