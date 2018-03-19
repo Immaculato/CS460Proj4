@@ -27,10 +27,8 @@ class MultilayerPerceptron:
     inputs = list()
     classLabelList = list()
     distinctClassLabels = set()
-    unbranchedFeatures = set()
-    rootTreeNode = Node()
-    weightsMatrix1 = None
-    weightsMatrix2 = None
+    weightsMatrices = list()
+    nodesLayersList = list()
 
     '''
     def __debugPrint(self):
@@ -49,9 +47,9 @@ class MultilayerPerceptron:
     '''
 
     #initialization takes a filename.
-    def __init__(self, filename, numLayers, debug):
+    def __init__(self, filename, hiddenLayers, debug):
         self.debug = debug
-        self.numLayers = numLayers
+        self.hiddenLayers = hiddenLayers
         file = None
         try:
             file = open(filename, "r")
@@ -64,16 +62,40 @@ class MultilayerPerceptron:
         lineIndex = 0
         for line in file:
             parsedLine = line.rstrip().split(',')
-            self.classLabelList.append(parsedLine[0])
+            self.classLabelList.append(int(parsedLine[0]))
             self.inputs.append(list())
             for i in range(1, len(parsedLine)):
                 self.inputs[lineIndex].append(int(parsedLine[i]))
             #self.distinctClassLabels.add(classLabel)
             lineIndex+=1
 
-        #build the tree from backwards up.
+        #build the tree from the output up.
         outputNode = Node()
+        #create a temporary list to hold weights to build matrices later.
+        weightsLists = list()
+        for i in range(hiddenLayers+1):
+            weightsLists.append(list())
+            self.nodesLayersList.append(list())
 
+        
+        #create nodes for the last layer and all internal layers.
+        for i in range(hiddenLayers, 0, -1):
+            for j in range(50):
+                #for the last layer, tie each node to the output node.
+                if i == hiddenLayers:
+                    self.nodesLayersList[i].append(Node())
+                    self.nodesLayersList[i][j].forwardNodes.append(outputNode)
+                    self.nodesLayersList[i][j].weights.append(0.0)
+                    weightsLists[i].append(self.nodesLayersList[i][j].weights)
+                #for internal layers, tie each node to the next set of internal nodes.
+                else:
+                    self.nodesLayersList[i].append(Node())
+                    self.nodesLayersList[i][j].forwardNodes = self.nodesLayersList[i+1]
+                    #we're gonna need 50 weights per node here.
+                    for k in range(50):
+                        self.nodesLayersList[i][j].weights.append(0.0)
+                    weightsLists[i].append(self.nodesLayersList[i][j].weights)
+        '''
         #make a fixed amount of hidden nodes that point to this output
         weightsList2 = list()
         hiddenNodes = list()
@@ -82,27 +104,57 @@ class MultilayerPerceptron:
             hiddenNodes[i].forwardNodes.append(outputNode)
             hiddenNodes[i].weights.append(0.0)
             weightsList2.append(hiddenNodes[i].weights)
+        '''
+        #make the input nodes, then connect each input node to the earliest nodeLayer
+        for i in range(784):
+            self.nodesLayersList[0].append(Node())
+            for j in range(50):
+                self.nodesLayersList[0][i].forwardNodes.append(self.nodesLayersList[1][j])
+                self.nodesLayersList[0][i].weights.append(0.0)
+            weightsLists[0].append(self.nodesLayersList[0][i].weights)
 
+        '''
         #make the input nodes, then connect each input node to each hidden node
-        weightsList1 = list()
         for i in range(784):
             self.inputNodes.append(Node())
             for j in range(50):
                 self.inputNodes[i].forwardNodes.append(hiddenNodes[j])
                 self.inputNodes[i].weights.append(0.0)
             weightsList1.append(self.inputNodes[i].weights)
+        '''
 
         #build the weight matrix for each pair of layers.
+        for i in range(hiddenLayers+1):
+            print len(weightsLists[i])
+            self.weightsMatrices.append(np.matrix(weightsLists[i]).T)
+        '''
         self.weightsMatrix2 = np.matrix(weightsList2).T
         self.weightsMatrix1 = np.matrix(weightsList1).T
+        '''
 
         for i in range(len(self.inputs)):
             predictionTest = self.__prediction(i)
             print 'prediction for input', i, predictionTest
+            print 'error for input', i, self.classLabelList[i]-predictionTest
 
+    #get the prediction for a given input index.
     def __prediction(self, inputIndex):
         #print 'matrix 1 shape', self.weightsMatrix1.shape
         #print 'matrix 2 shape', self.weightsMatrix2.shape
+        inputVector = np.matrix(self.inputs[inputIndex]).T
+        for j in range(self.hiddenLayers+1):
+            print 'between layers', j, j+1, self.weightsMatrices[j].shape
+            print 'between layers', j, j+1, inputVector.shape
+            inputVector = self.weightsMatrices[j]*inputVector
+            vectorSize = len(inputVector)
+            #run sigmoid on the vector.
+            for i in range(vectorSize):
+                inputVector[i, 0] = self.__sigmoid(inputVector[i, 0])
+
+        return inputVector[0, 0]
+
+
+        '''
         inputVector = self.weightsMatrix1*np.matrix(self.inputs[inputIndex]).T
         vectorSize = len(inputVector)
 
@@ -117,10 +169,20 @@ class MultilayerPerceptron:
             inputVector[i, 0] = self.__sigmoid(inputVector[i, 0])
 
         return inputVector[0, 0]
+        '''
 
 
     def __sigmoid(self, inputVal):
         return 1.0/(1+np.e**-inputVal)
+
+    def __deltaOutputLayer(self, inputVal, prediction, error):
+        sigmoid = self.__sigmoid(inputVal)
+        return (sigmoid*(1-sigmoid)) * (prediction - error)
+
+    def __deltaInternalLayer(self, inputVal, deltaList, layer):
+        sigmoid = self.__sigmoid(inputVal)
+        #for j in range()
+        #return (sigmoid*(1-sigmoid))
 
 
         '''
@@ -142,9 +204,9 @@ def main():
         exit(-1)
     filename = sys.argv[1]
     isDebugMode = False
-    numLayers = 3
+    hiddenLayers = 2
     #initialize the network
-    neuralNet = MultilayerPerceptron(filename, numLayers, isDebugMode)
+    neuralNet = MultilayerPerceptron(filename, hiddenLayers, isDebugMode)
 
 
 
