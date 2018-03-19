@@ -1,6 +1,7 @@
 #Tristan Basil
 #Assignment: Project 4 - cS460G Machine Learning, Dr. Harrison
 
+#https://docs.scipy.org/doc/numpy-1.14.0/reference/generated/numpy.matrix.html
 #https://stackoverflow.com/questions/4455076/how-to-access-the-ith-column-of-a-numpy-multidimensional-array
 
 import matplotlib.pyplot as plt
@@ -29,6 +30,7 @@ class MultilayerPerceptron:
     weightsMatrices = list()
     nodesLayersList = list()
     inputVectorsAtLayerList = list()
+    activationVectorsAtLayerList = list()
     alpha = 0.1
 
     '''
@@ -78,8 +80,9 @@ class MultilayerPerceptron:
         for i in range(hiddenLayers+1):
             weightsLists.append(list())
             self.nodesLayersList.append(list())
-            #just give this vector dummy objects so we don't throw errors later, when storing inputs between each layer.
+            #just give these vectors dummy objects so we don't throw errors later, when storing inputs between each layer.
             self.inputVectorsAtLayerList.append(None)
+            self.activationVectorsAtLayerList.append(None)
 
         
         #create nodes for the last layer and all internal layers.
@@ -89,7 +92,7 @@ class MultilayerPerceptron:
                 if i == hiddenLayers:
                     self.nodesLayersList[i].append(Node())
                     self.nodesLayersList[i][j].forwardNodes.append(outputNode)
-                    self.nodesLayersList[i][j].weights.append(0.0)
+                    self.nodesLayersList[i][j].weights.append(0.001)
                     weightsLists[i].append(self.nodesLayersList[i][j].weights)
                 #for internal layers, tie each node to the next set of internal nodes.
                 else:
@@ -97,7 +100,7 @@ class MultilayerPerceptron:
                     self.nodesLayersList[i][j].forwardNodes = self.nodesLayersList[i+1]
                     #we're gonna need 50 weights per node here.
                     for k in range(50):
-                        self.nodesLayersList[i][j].weights.append(0.0)
+                        self.nodesLayersList[i][j].weights.append(0.001)
                     weightsLists[i].append(self.nodesLayersList[i][j].weights)
         '''
         #make a fixed amount of hidden nodes that point to this output
@@ -114,7 +117,7 @@ class MultilayerPerceptron:
             self.nodesLayersList[0].append(Node())
             for j in range(50):
                 self.nodesLayersList[0][i].forwardNodes.append(self.nodesLayersList[1][j])
-                self.nodesLayersList[0][i].weights.append(0.0)
+                self.nodesLayersList[0][i].weights.append(0.001)
             weightsLists[0].append(self.nodesLayersList[0][i].weights)
 
         '''
@@ -140,12 +143,11 @@ class MultilayerPerceptron:
         while backPropagating:
             #for each input
             for i in range(len(self.inputs)):
-                print 'on input', i
+                #print 'on input', i
                 #get the prediction and error for the example
                 prediction = self.__prediction(i)
-                print 'prediction for input', i, prediction
                 error = self.classLabelList[i]-prediction
-                print 'error for input', i, error
+                print 'error', error
                 #calculate DeltaJ for the output layer.
                 inputVector = self.inputVectorsAtLayerList[self.hiddenLayers]
                 #inputVector = self.weightsMatrices[self.hiddenLayers+1]*np.matrix(self.inputVectorsAtLayerList[self.hiddenLayers+1]).T
@@ -154,30 +156,36 @@ class MultilayerPerceptron:
                     inputVector[j, 0] = self.__deltaOutputLayer(inputVector[j, 0], error)
                 #inputVector now contains the deltaJ values in a vector. store it to another one with a better name so my brain doesn't explode.
                 upperInputVector = inputVector
-                print 'afterOutputlayerdelta'
+
+                #for each weight in the layer before the output, do the updates.
+                weightsCount = len(self.weightsMatrices[self.hiddenLayers])
+                upperWeightsCount = 1
+                for k in range(weightsCount):
+                    for l in range(upperWeightsCount):
+                        #this needs to use the activation value, NOT the actual value.
+                        #print self.weightsMatrices[j][k][l]
+                        #print self.alpha*self.activationVectorsAtLayerList[j][k,0]*upperInputVector[l]
+                        self.weightsMatrices[self.hiddenLayers][k][l] = self.weightsMatrices[self.hiddenLayers][k][l] + (self.alpha*self.activationVectorsAtLayerList[self.hiddenLayers][k,0]*upperInputVector[l])
 
                 
                 #for each layer before the output layer going backwards,
                 for j in range(self.hiddenLayers-1, -1, -1):
-                    print j
-                    print 'before'
-                    #****OFFENDER IN HERE****
                     #for each node in that layer,
-                    nodeCount = len(self.nodesLayersList[j])
-                    print nodeCount
-                    for k in range(nodeCount):
-                        internalInputVector = self.inputVectorsAtLayerList[j]
-                        vectorSize = len(internalInputVector)
-                        for l in range(vectorSize):
-                            internalInputVector[l, 0] = self.__deltaInternalLayer(internalInputVector[l, 0], k, l, j, upperInputVector)
+                    internalInputVector = self.inputVectorsAtLayerList[j]
+                    vectorSize = len(internalInputVector)
+                    for l in range(vectorSize):
+                        internalInputVector[l, 0] = self.__deltaInternalLayer(internalInputVector[l, 0], l, j, upperInputVector)
                     #now, the upper input vector is the vector we just calculated.
                     upperInputVector = internalInputVector
-                    #****OFFENDER IN HERE****
                     #for each weight in this layer, do the updates.
                     weightsCount = len(self.weightsMatrices[j])
+                    upperWeightsCount = len(self.weightsMatrices[j+1])
                     for k in range(weightsCount):
-                        #this needs to use the activation value, NOT the actual value.
-                        self.weightsMatrices[j][k] = self.weightsMatrices[j][k] + (self.alpha*self.classLabelList[i]*upperInputVector[k])
+                        for l in range(upperWeightsCount):
+                            #this needs to use the activation value, NOT the actual value.
+                            #print self.weightsMatrices[j][k][l]
+                            #print self.alpha*self.activationVectorsAtLayerList[j][k,0]*upperInputVector[l]
+                            self.weightsMatrices[j][k][l] = self.weightsMatrices[j][k][l] + (self.alpha*self.activationVectorsAtLayerList[j][k,0]*upperInputVector[l])
                 
 
                 
@@ -192,11 +200,12 @@ class MultilayerPerceptron:
             #print 'between layers', j, j+1, self.weightsMatrices[j].shape
             #print 'between layers', j, j+1, inputVector.shape
             inputVector = self.weightsMatrices[j]*inputVector
+            self.inputVectorsAtLayerList[j] = copy.deepcopy(inputVector)
             vectorSize = len(inputVector)
             #run sigmoid on the vector.
             for i in range(vectorSize):
                 inputVector[i, 0] = self.__sigmoid(inputVector[i, 0])
-            self.inputVectorsAtLayerList[j] = copy.deepcopy(inputVector)
+            self.activationVectorsAtLayerList[j] = copy.deepcopy(inputVector)
 
         return inputVector[0, 0]
 
@@ -225,10 +234,14 @@ class MultilayerPerceptron:
         sigmoid = self.__sigmoid(inputVal)
         return (sigmoid*(1-sigmoid)) * (error)
 
-    def __deltaInternalLayer(self, inputVal, fromNode, toNode, layer, deltaTo):
+    def __deltaInternalLayer(self, inputVal, toNode, layer, deltaTo):
         sigmoid = self.__sigmoid(inputVal)
         #print len(self.weightsLists[layer+1])
         #for the number of nodes in the above layer,
+        test = self.weightsMatrices[layer+1][:,toNode].T*deltaTo
+        #print 'delta to first element', deltaTo[0, 0]
+        #print 'inputVal', inputVal
+        #print 'sigmoid', sigmoid
         return (sigmoid*(1-sigmoid)) * (self.weightsMatrices[layer+1][:,toNode].T*deltaTo)
 
 
@@ -252,7 +265,7 @@ def main():
     filename = sys.argv[1]
     isDebugMode = False
     hiddenLayers = 1
-    alpha = 0.1
+    alpha = 0.01
     #initialize the network
     neuralNet = MultilayerPerceptron(filename, hiddenLayers, isDebugMode, alpha)
 
