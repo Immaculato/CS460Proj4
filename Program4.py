@@ -9,6 +9,7 @@ import numpy as np
 import math
 import sys
 import copy
+import random
 
 class Node:
     weights = list()
@@ -31,6 +32,7 @@ class MultilayerPerceptron:
     nodesLayersList = list()
     inputVectorsAtLayerList = list()
     activationVectorsAtLayerList = list()
+    numEpochs = 10
     alpha = 0.1
 
     '''
@@ -50,10 +52,11 @@ class MultilayerPerceptron:
     '''
 
     #initialization takes a filename.
-    def __init__(self, filename, hiddenLayers, alpha, debug):
+    def __init__(self, filename, hiddenLayers, alpha, numEpochs, debug):
         self.debug = debug
         self.hiddenLayers = hiddenLayers
         self.alpha = alpha
+        self.numEpochs = numEpochs
         file = None
         try:
             file = open(filename, "r")
@@ -87,21 +90,23 @@ class MultilayerPerceptron:
         
         #create nodes for the last layer and all internal layers.
         for i in range(hiddenLayers, 0, -1):
+            #create 50 nodes
             for j in range(50):
                 #for the last layer, tie each node to the output node.
                 if i == hiddenLayers:
                     self.nodesLayersList[i].append(Node())
                     self.nodesLayersList[i][j].forwardNodes.append(outputNode)
-                    self.nodesLayersList[i][j].weights.append(0.001)
+                    self.nodesLayersList[i][j].weights.append(random.uniform(0.00001, 0.0001))
                     weightsLists[i].append(self.nodesLayersList[i][j].weights)
-                #for internal layers, tie each node to the next set of internal nodes.
+                #for internal layers, tie each node to the next set of internal nodes, except the bias node.
                 else:
                     self.nodesLayersList[i].append(Node())
                     self.nodesLayersList[i][j].forwardNodes = self.nodesLayersList[i+1]
                     #we're gonna need 50 weights per node here.
                     for k in range(50):
-                        self.nodesLayersList[i][j].weights.append(0.001)
+                        self.nodesLayersList[i][j].weights.append(random.uniform(0.00001, 0.0001))
                     weightsLists[i].append(self.nodesLayersList[i][j].weights)
+
         '''
         #make a fixed amount of hidden nodes that point to this output
         weightsList2 = list()
@@ -117,7 +122,7 @@ class MultilayerPerceptron:
             self.nodesLayersList[0].append(Node())
             for j in range(50):
                 self.nodesLayersList[0][i].forwardNodes.append(self.nodesLayersList[1][j])
-                self.nodesLayersList[0][i].weights.append(0.001)
+                self.nodesLayersList[0][i].weights.append(random.uniform(0.00001, 0.0001))
             weightsLists[0].append(self.nodesLayersList[0][i].weights)
 
         '''
@@ -132,41 +137,50 @@ class MultilayerPerceptron:
 
         #build the weight matrix for each pair of layers.
         for i in range(hiddenLayers+1):
-            print len(weightsLists[i])
             self.weightsMatrices.append(np.matrix(weightsLists[i]).T)
         '''
         self.weightsMatrix2 = np.matrix(weightsList2).T
         self.weightsMatrix1 = np.matrix(weightsList1).T
         '''
 
-        backPropagating = True
-        while backPropagating:
+        #print '0', self.weightsMatrices[0]
+        #print '0', self.weightsMatrices[0].shape
+        #print '1', self.weightsMatrices[1]
+        #print '1', self.weightsMatrices[1].shape
+
+        for epoch in range(self.numEpochs):
             #for each input
+            print 'On epoch', epoch+1, 'out of', self.numEpochs
             for i in range(len(self.inputs)):
                 #print 'on input', i
                 #get the prediction and error for the example
                 prediction = self.__prediction(i)
                 error = self.classLabelList[i]-prediction
-                print 'error', error
+                if i%100==0:
+                    print 'error', error
                 #calculate DeltaJ for the output layer.
                 inputVector = self.inputVectorsAtLayerList[self.hiddenLayers]
                 #inputVector = self.weightsMatrices[self.hiddenLayers+1]*np.matrix(self.inputVectorsAtLayerList[self.hiddenLayers+1]).T
                 vectorSize = len(inputVector)
+                #print 'before delta change', inputVector 
                 for j in range(vectorSize):
                     inputVector[j, 0] = self.__deltaOutputLayer(inputVector[j, 0], error)
                 #inputVector now contains the deltaJ values in a vector. store it to another one with a better name so my brain doesn't explode.
                 upperInputVector = inputVector
+                #print 'after delta change', inputVector
 
                 #for each weight in the layer before the output, do the updates.
                 weightsCount = len(self.weightsMatrices[self.hiddenLayers])
-                upperWeightsCount = 1
+                upperWeightsCount = len(upperInputVector)
+                #print 'before updates', self.weightsMatrices[self.hiddenLayers]
                 for k in range(weightsCount):
                     for l in range(upperWeightsCount):
                         #this needs to use the activation value, NOT the actual value.
                         #print self.weightsMatrices[j][k][l]
-                        #print self.alpha*self.activationVectorsAtLayerList[j][k,0]*upperInputVector[l]
+                        #print self.alpha
+                        #print 'hello world', (self.activationVectorsAtLayerList[self.hiddenLayers][k,0]*upperInputVector[l])
                         self.weightsMatrices[self.hiddenLayers][k][l] = self.weightsMatrices[self.hiddenLayers][k][l] + (self.alpha*self.activationVectorsAtLayerList[self.hiddenLayers][k,0]*upperInputVector[l])
-
+                #print 'after updates', self.weightsMatrices[self.hiddenLayers]
                 
                 #for each layer before the output layer going backwards,
                 for j in range(self.hiddenLayers-1, -1, -1):
@@ -184,7 +198,8 @@ class MultilayerPerceptron:
                         for l in range(upperWeightsCount):
                             #this needs to use the activation value, NOT the actual value.
                             #print self.weightsMatrices[j][k][l]
-                            #print self.alpha*self.activationVectorsAtLayerList[j][k,0]*upperInputVector[l]
+                            #print upperInputVector[l]
+                            #print self.activationVectorsAtLayerList[j][k,0]
                             self.weightsMatrices[j][k][l] = self.weightsMatrices[j][k][l] + (self.alpha*self.activationVectorsAtLayerList[j][k,0]*upperInputVector[l])
                 
 
@@ -228,7 +243,12 @@ class MultilayerPerceptron:
         '''
 
     def __sigmoid(self, inputVal):
-        return 1.0/(1+np.e**-inputVal)
+        try:
+            return 1.0/(1+np.e**-inputVal)
+        except:
+            print inputVal
+            return 0.000001
+
 
     def __deltaOutputLayer(self, inputVal, error):
         sigmoid = self.__sigmoid(inputVal)
@@ -265,9 +285,11 @@ def main():
     filename = sys.argv[1]
     isDebugMode = False
     hiddenLayers = 1
-    alpha = 0.01
+    alpha = 1.0
+    numEpochs = 1
     #initialize the network
-    neuralNet = MultilayerPerceptron(filename, hiddenLayers, isDebugMode, alpha)
+    neuralNet = MultilayerPerceptron(filename, hiddenLayers, alpha, numEpochs, isDebugMode)
+    
 
 
 
