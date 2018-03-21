@@ -13,15 +13,6 @@ import sys
 import copy
 import random
 
-class Node:
-    weights = list()
-    forwardNodes = list()
-
-    def __init__(self):
-        self.weights = list()
-        self.forwardNodes = list()
-
-
 #this class is only designed to work for the data in this project.
 class MultilayerPerceptron:
     hiddenLayers = -1
@@ -34,10 +25,10 @@ class MultilayerPerceptron:
     nodesLayersList = list()
     inputVectorsAtLayerList = list()
     activationVectorsAtLayerList = list()
-    inputMatrix = None
+    #inputMatrix = None
     numEpochs = 10
     alpha = 0.1
-    numHiddenNodes = 50
+    numHiddenNodes = 10
     numInputs = 784
 
     '''
@@ -75,14 +66,13 @@ class MultilayerPerceptron:
             self.classLabelList.append(int(parsedLine[0]))
             self.inputs.append(list())
             for i in range(1, len(parsedLine)):
-                self.inputs[lineIndex].append(int(parsedLine[i]))
+                self.inputs[lineIndex].append(float(parsedLine[i])/255.0)
             #self.distinctClassLabels.add(classLabel)
             lineIndex+=1
 
-        self.inputMatrix = np.matrix(self.inputs)
+        #self.inputMatrix = np.matrix(self.inputs)
 
         #build the tree from the output up.
-        outputNode = Node()
         #create a temporary list to hold weights to build matrices later.
         weightsLists = list()
         for i in range(hiddenLayers+1):
@@ -99,18 +89,19 @@ class MultilayerPerceptron:
             for j in range(self.numHiddenNodes):
                 #for the last layer, tie each node to the output node.
                 if i == hiddenLayers:
-                    self.nodesLayersList[i].append(Node())
-                    self.nodesLayersList[i][j].forwardNodes.append(outputNode)
-                    self.nodesLayersList[i][j].weights.append(random.uniform(0.00001, 0.0001))
-                    weightsLists[i].append(self.nodesLayersList[i][j].weights)
+                    weightsList = list()
+                    #self.nodesLayersList[i].append(Node())
+                    #self.nodesLayersList[i][j].forwardNodes.append(outputNode)
+                    weightsList.append(random.uniform(-1.0, 1.0))
+                    weightsLists[i].append(weightsList)
                 #for internal layers, tie each node to the next set of internal nodes, except the bias node.
                 else:
-                    self.nodesLayersList[i].append(Node())
-                    self.nodesLayersList[i][j].forwardNodes = self.nodesLayersList[i+1]
-                    #we're gonna need 10 weights per node here.
+                    #we're gonna need more weights per node here.
+                    weightsList = list()
                     for k in range(self.numHiddenNodes):
-                        self.nodesLayersList[i][j].weights.append(random.uniform(0.00001, 0.0001))
-                    weightsLists[i].append(self.nodesLayersList[i][j].weights)
+                        weightsList = list()
+                        weightsList.append(random.uniform(-1.0, 1.0))
+                    weightsLists[i].append(weightsList)
 
         '''
         #make a fixed amount of hidden nodes that point to this output
@@ -124,11 +115,10 @@ class MultilayerPerceptron:
         '''
         #make the input nodes, then connect each input node to the earliest nodeLayer
         for i in range(self.numInputs):
-            self.nodesLayersList[0].append(Node())
+            weightsList = list()
             for j in range(self.numHiddenNodes):
-                self.nodesLayersList[0][i].forwardNodes.append(self.nodesLayersList[1][j])
-                self.nodesLayersList[0][i].weights.append(random.uniform(0.00001, 0.0001))
-            weightsLists[0].append(self.nodesLayersList[0][i].weights)
+                weightsList.append(random.uniform(-1.0, 1.0))
+            weightsLists[0].append(weightsList)
 
         '''
         #make the input nodes, then connect each input node to each hidden node
@@ -161,7 +151,7 @@ class MultilayerPerceptron:
             #for each input
             print 'On epoch', epoch+1, 'out of', self.numEpochs
             for i in range(len(self.inputs)):
-                print 'before'
+                #print 'before'
                 #print 'on input', i
                 #get the prediction and error for the example
                 prediction = self.__prediction(self.inputs[i])
@@ -202,15 +192,16 @@ class MultilayerPerceptron:
                 
                 #for each layer before the output layer going backwards,
                 for j in range(self.hiddenLayers-1, -1, -1):
+                    currentWeightsMatrix = self.weightsMatrices[j]
                     #for each node in that layer,
                     internalInputVector = self.inputVectorsAtLayerList[j]
                     #print 'internalInputVector', internalInputVector
                     #print 'upper deltaJvector', upperInputVector
                     vectorSize = len(internalInputVector)
-                    print 'vectorSize', vectorSize
+                    #print 'vectorSize', vectorSize
                     for l in range(vectorSize):
                         internalInputVector[l, 0] = self.__deltaInternalLayer(internalInputVector[l, 0], l, j, upperInputVector)
-                    print 'after'
+                    #print 'after'
                     #now, the upper input vector is the vector we just calculated.
                     upperInputVector = internalInputVector
                     #for each weight in this layer, do the updates.
@@ -228,13 +219,15 @@ class MultilayerPerceptron:
                                 #print self.weightsMatrices[j]
                                 #print self.weightsMatrices[j][l,k]
                                 #print self.activationVectorsAtLayerList[j].shape
-                                self.weightsMatrices[j][l,k] = self.weightsMatrices[j][l,k] + (self.alpha*self.activationVectorsAtLayerList[j-1][k,0]*upperInputVector[l])
+                                currentWeightsMatrix[l,k] = currentWeightsMatrix[l,k] + (self.alpha*self.activationVectorsAtLayerList[j-1][k,0]*upperInputVector[l])
                     elif j==0:
                         #print 'before\n', self.weightsMatrices[j]
                         example = self.inputs[i]
                         #print 'start'
-                        for k in range(weightsCount):
-                            for l in range(upperWeightsCount):
+                        count = 0
+                        for l in range(upperWeightsCount):
+                            fasterDeltaJ = upperInputVector[l]
+                            for k in range(weightsCount):
                                 #this needs to use the activation value, NOT the actual value.
                                 #print self.weightsMatrices[j][k][l]
                                 #print upperInputVector[l]
@@ -247,9 +240,12 @@ class MultilayerPerceptron:
                                 #print 'activation', example[k]
                                 #print 'deltaj', upperInputVector[l]
                                 #print 'weight to update', self.weightsMatrices[j][l,k]
-                                self.weightsMatrices[j][l,k] = self.weightsMatrices[j][l,k] + (self.alpha*(example[k]*upperInputVector[l]))
+                                currentWeightsMatrix[l,k] = currentWeightsMatrix[l,k] + (self.alpha*(example[k]*fasterDeltaJ))
                         #print 'end'
                         #print 'after', self.weightsMatrices[j]
+                    #print self.weightsMatrices[0]
+                    #print self.weightsMatrices[1]
+                self.runTestExamples('data/easierTrain')
 
                     
 
@@ -301,7 +297,6 @@ class MultilayerPerceptron:
         try:
             return 1.0/(1+np.e**-inputVal)
         except:
-            #print inputVal
             return 0.000001
 
 
@@ -324,6 +319,7 @@ class MultilayerPerceptron:
         for i in range(weightsVectorSize):
             jSum+=itojWeightsVector[i]*deltaTo
         #print 'weightDeltaJSUm', jSum
+
         return (sigmoid*(1-sigmoid)) * jSum
 
 
@@ -365,11 +361,13 @@ class MultilayerPerceptron:
         total=0
         for i in range(numInputs):
             prediction = int(round(self.__prediction(testInputs[i])))
+            print self.__prediction(testInputs[i])
+            print prediction
             if prediction == testClassLabelList[i]:
                 successes+=1
             total+=1
 
-        print 'Final accuracy:', successes, 'out of', total, '- Percentage:', float(successes)/total, '%'
+        print 'Final accuracy:', successes, 'out of', total, '- Percentage:', (float(successes)/total)*100, '%'
 
 
     
@@ -383,13 +381,12 @@ def main():
     testFilename = sys.argv[2]
     isDebugMode = False
     hiddenLayers = 1
-    alpha =0.5
-    numEpochs = 1
+    alpha = 0.1
+    numEpochs = 10
     #initialize the network
     neuralNet = MultilayerPerceptron(trainingFilename, hiddenLayers, isDebugMode)
     neuralNet.runTestExamples(testFilename)
     neuralNet.train(alpha, numEpochs)
-    #neuralNet.runTestExamples(testFilename)
 
 
 
