@@ -92,7 +92,7 @@ class MultilayerPerceptron:
                     weightsList = list()
                     #self.nodesLayersList[i].append(Node())
                     #self.nodesLayersList[i][j].forwardNodes.append(outputNode)
-                    weightsList.append(random.uniform(-1.0, 1.0))
+                    weightsList.append(random.uniform(-0.1, 0.1))
                     weightsLists[i].append(weightsList)
                 #for internal layers, tie each node to the next set of internal nodes, except the bias node.
                 else:
@@ -100,7 +100,7 @@ class MultilayerPerceptron:
                     weightsList = list()
                     for k in range(self.numHiddenNodes):
                         weightsList = list()
-                        weightsList.append(random.uniform(-1.0, 1.0))
+                        weightsList.append(random.uniform(-0.1, 0.1))
                     weightsLists[i].append(weightsList)
 
         '''
@@ -117,7 +117,7 @@ class MultilayerPerceptron:
         for i in range(self.numInputs):
             weightsList = list()
             for j in range(self.numHiddenNodes):
-                weightsList.append(random.uniform(-1.0, 1.0))
+                weightsList.append(random.uniform(-0.1, 0.1))
             weightsLists[0].append(weightsList)
 
         '''
@@ -245,7 +245,7 @@ class MultilayerPerceptron:
                         #print 'after', self.weightsMatrices[j]
                     #print self.weightsMatrices[0]
                     #print self.weightsMatrices[1]
-                self.runTestExamples('data/easierTrain')
+                #self.runTestExamples('data/easierTrain')
 
                     
 
@@ -361,8 +361,8 @@ class MultilayerPerceptron:
         total=0
         for i in range(numInputs):
             prediction = int(round(self.__prediction(testInputs[i])))
-            print self.__prediction(testInputs[i])
-            print prediction
+            #print self.__prediction(testInputs[i])
+            #print prediction
             if prediction == testClassLabelList[i]:
                 successes+=1
             total+=1
@@ -381,12 +381,13 @@ def main():
     testFilename = sys.argv[2]
     isDebugMode = False
     hiddenLayers = 1
-    alpha = 0.1
-    numEpochs = 10
+    alpha = 0.2
+    numEpochs = 1
     #initialize the network
     neuralNet = MultilayerPerceptron(trainingFilename, hiddenLayers, isDebugMode)
     neuralNet.runTestExamples(testFilename)
     neuralNet.train(alpha, numEpochs)
+    neuralNet.runTestExamples(testFilename)
 
 
 
