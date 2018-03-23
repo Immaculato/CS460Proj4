@@ -25,6 +25,7 @@ class MultilayerPerceptron:
     nodesLayersList = list()
     inputVectorsAtLayerList = list()
     activationVectorsAtLayerList = list()
+    biasNodesList = list()
     #inputMatrix = None
     numEpochs = 10
     alpha = 0.1
@@ -81,8 +82,12 @@ class MultilayerPerceptron:
             #just give these vectors dummy objects so we don't throw errors later, when storing inputs between each layer.
             self.inputVectorsAtLayerList.append(None)
             self.activationVectorsAtLayerList.append(None)
+            self.biasNodesList.append(list())
+        #to make things simpler, just add another bias layer element so that the layers line up later on.
+        self.biasNodesList.append(list())
 
-        
+        #add a bias node for the output layer.
+        self.biasNodesList[2].append(random.uniform(-0.1, 0.1))
         #create nodes for the last layer and all internal layers.
         for i in range(hiddenLayers, 0, -1):
             #create 10 nodes
@@ -93,15 +98,23 @@ class MultilayerPerceptron:
                     #self.nodesLayersList[i].append(Node())
                     #self.nodesLayersList[i][j].forwardNodes.append(outputNode)
                     weightsList.append(random.uniform(-0.1, 0.1))
-                    weightsLists[i].append(weightsList)
-                #for internal layers, tie each node to the next set of internal nodes, except the bias node.
+                    self.biasNodesList[i].append(random.uniform(-0.1, 0.1))
+                    #weightsLists[i].append(weightsList)
+                #for internal layers, we'll need bias nodes.
                 else:
                     #we're gonna need more weights per node here.
                     weightsList = list()
                     for k in range(self.numHiddenNodes):
-                        weightsList = list()
+                        #weightsList = list()
                         weightsList.append(random.uniform(-0.1, 0.1))
-                    weightsLists[i].append(weightsList)
+                        self.biasNodesList[i].append(random.uniform(-0.1, 0.1))
+                #add an extra weight for the bias node at the each internal and the output layer
+               
+                weightsLists[i].append(weightsList)
+
+        print 'biasnodelist1', self.biasNodesList[1]
+        print 'biasnodelist2', self.biasNodesList[2]
+                
 
         '''
         #make a fixed amount of hidden nodes that point to this output
@@ -174,8 +187,9 @@ class MultilayerPerceptron:
                 #print weightsCount
                 upperWeightsCount = self.weightsMatrices[self.hiddenLayers].shape[0]
                 #print 'before updates', self.weightsMatrices[self.hiddenLayers]
-                
-                for k in range(weightsCount):
+                #extra weight for bias
+                for k in range(weightsCount+1):
+                    #print 'outputlayernodes', weightsCount
                     for l in range(upperWeightsCount):
                         #this needs to use the activation value, NOT the actual value.
                         #print self.weightsMatrices[j][k][l]
@@ -185,7 +199,11 @@ class MultilayerPerceptron:
                         #print 'activation', self.activationVectorsAtLayerList[self.hiddenLayers-1][k,0]
                         #print 'deltaj', upperInputVector[l]
                         #print 'weight to update', self.weightsMatrices[self.hiddenLayers][l,k]
-                        self.weightsMatrices[self.hiddenLayers][l,k] = self.weightsMatrices[self.hiddenLayers][l,k] + (self.alpha*self.activationVectorsAtLayerList[self.hiddenLayers-1][k,0]*upperInputVector[l])
+                        if k < weightsCount:
+                            self.weightsMatrices[self.hiddenLayers][l,k] = self.weightsMatrices[self.hiddenLayers][l,k] + (self.alpha*self.activationVectorsAtLayerList[self.hiddenLayers-1][k,0]*upperInputVector[l])
+                        #weight update for bias node
+                        elif k == weightsCount:
+                            self.biasNodesList[self.hiddenLayers][l] = self.biasNodesList[self.hiddenLayers][l] + (self.alpha*1.0*upperInputVector[l])
                 #print 'after updates', self.weightsMatrices[self.hiddenLayers]
 
                 #print 'final weights matrix:\n', self.weightsMatrices[self.hiddenLayers]
@@ -208,7 +226,8 @@ class MultilayerPerceptron:
                     weightsCount = self.weightsMatrices[j].shape[1]
                     upperWeightsCount = self.weightsMatrices[j].shape[0]
                     if j > 0:
-                        for k in range(weightsCount):
+                        #extra weight for bias
+                        for k in range(weightsCount+1):
                             for l in range(upperWeightsCount):
                                 #this needs to use the activation value, NOT the actual value.
                                 #print self.weightsMatrices[j][k][l]
@@ -219,7 +238,11 @@ class MultilayerPerceptron:
                                 #print self.weightsMatrices[j]
                                 #print self.weightsMatrices[j][l,k]
                                 #print self.activationVectorsAtLayerList[j].shape
-                                currentWeightsMatrix[l,k] = currentWeightsMatrix[l,k] + (self.alpha*self.activationVectorsAtLayerList[j-1][k,0]*upperInputVector[l])
+                                if k < weightsCount:
+                                    currentWeightsMatrix[l,k] = currentWeightsMatrix[l,k] + (self.alpha*self.activationVectorsAtLayerList[j-1][k,0]*upperInputVector[l])
+                                #weight update for bias node
+                                elif k == weightsCount:
+                                    self.biasNodesList[j][l] = self.biasNodesList[j][l] + (self.alpha*1.0*upperInputVector[l])
                     elif j==0:
                         #print 'before\n', self.weightsMatrices[j]
                         example = self.inputs[i]
@@ -265,7 +288,8 @@ class MultilayerPerceptron:
             vectorSize = len(inputVector)
             #run sigmoid on the vector.
             for i in range(vectorSize):
-                inputVector[i, 0] = self.__sigmoid(inputVector[i, 0])
+                #don't forget the bias node in this part.
+                inputVector[i, 0] = self.__sigmoid(inputVector[i, 0] + self.biasNodesList[j+1][i])
             self.activationVectorsAtLayerList[j] = copy.deepcopy(inputVector)
 
 
