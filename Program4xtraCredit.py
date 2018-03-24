@@ -63,17 +63,21 @@ class MultilayerPerceptron:
         #to make things simpler, just add another bias layer element so that the layers line up later on.
         self.biasNodesList.append(list())
 
-        #add a bias node for the output layer.
-        self.biasNodesList[2].append(random.uniform(-0.1, 0.1))
+        #add bias nodes for the output layer.
+        for i in range(5):
+            self.biasNodesList[2].append(random.uniform(-0.1, 0.1))
+
         #create nodes for the last layer and all internal layers.
         for i in range(hiddenLayers, 0, -1):
             #create 10 nodes
             for j in range(self.numHiddenNodes):
-                #for the last layer, tie each node to the output node.
+                #for the last layer, tie each node to each output node.
                 if i == hiddenLayers:
                     weightsList = list()
-                    weightsList.append(random.uniform(-0.1, 0.1))
+                    for k in range(5):
+                        weightsList.append(random.uniform(-0.1, 0.1))
                     self.biasNodesList[i].append(random.uniform(-0.1, 0.1))
+
                 #for internal layers, we'll need bias nodes.
                 else:
                     #we're gonna need more weights per node here.
@@ -111,14 +115,19 @@ class MultilayerPerceptron:
             print 'On epoch', epoch+1, 'out of', self.numEpochs
             for i in range(len(self.inputs)):
                 #get the prediction and error for the example
-                prediction = self.__prediction(self.inputs[i])
-                error = self.classLabelList[i]-prediction
-                print 'on input', i, 'error', error
+                predictionVector = self.__prediction(self.inputs[i])
+                errorVector = predictionVector
+                for j in range(len(predictionVector)):
+                    if j == self.classLabelList[i]:
+                        errorVector[j] = 1.0 - errorVector[j]
+                    else:
+                        errorVector[j] = 0 - errorVector[j]
+                print 'on input', i, 'error', errorVector
                 #calculate DeltaJ for the output layer.
                 inputVector = self.inputVectorsAtLayerList[self.hiddenLayers]
                 vectorSize = len(inputVector)
                 for j in range(vectorSize):
-                    inputVector[j, 0] = self.__deltaOutputLayer(inputVector[j, 0], error)
+                    inputVector[j, 0] = self.__deltaOutputLayer(inputVector[j, 0], errorVector[j])
                 #inputVector now contains the deltaJ values in a vector. store it to another one with a better name so my brain doesn't explode.
                 upperInputVector = inputVector
 
@@ -133,7 +142,6 @@ class MultilayerPerceptron:
                             self.weightsMatrices[self.hiddenLayers][l,k] = self.weightsMatrices[self.hiddenLayers][l,k] + (self.alpha*self.activationVectorsAtLayerList[self.hiddenLayers-1][k,0]*upperInputVector[l])
                         #weight update for bias node
                         elif k == weightsCount:
-                            #print 'is this a joke', (self.alpha*0*upperInputVector[l,0])
                             self.biasNodesList[self.hiddenLayers+1][l] = self.biasNodesList[self.hiddenLayers+1][l] + (self.alpha*1.0*upperInputVector[l,0])
                 
                 #for each layer before the output layer going backwards,
@@ -162,14 +170,14 @@ class MultilayerPerceptron:
                         example = self.inputs[i]
                         count = 0
                         for l in range(upperWeightsCount):
-                            fasterDeltaJ = upperInputVector[l,0]
-                            for k in range(weightsCount+1):
+                            fasterDeltaJ = upperInputVector[l]
+                            fasterBiasNode = self.biasNodesList[j+1][l]
+                            for k in range(weightsCount):
                                 #this needs to use the input value
                                 if k < weightsCount:
                                     currentWeightsMatrix[l,k] = currentWeightsMatrix[l,k] + (self.alpha*(example[k]*fasterDeltaJ))
                                 elif k==weightsCount:
-                                    self.biasNodesList[j+1][l] = self.biasNodesList[j+1][l] + (self.alpha*1.0*fasterDeltaJ)
-
+                                    fasterBiasNode = fasterBiasNode + (self.alpha*1.0*fasterDeltaJ)
 
     #get the prediction for a given input index.
     def __prediction(self, inputList):
@@ -180,12 +188,16 @@ class MultilayerPerceptron:
             self.inputVectorsAtLayerList[j] = copy.deepcopy(inputVector)
             vectorSize = len(inputVector)
             #run sigmoid on the vector.
+            #print 'vectorSize', vectorSize
             for i in range(vectorSize):
                 #don't forget the bias node in this part.
+                #print 'a', inputVector[i,0]
+                #print j, i
+                #print 'b', self.biasNodesList[j+1][i]
                 inputVector[i, 0] = self.__sigmoid(inputVector[i, 0] + self.biasNodesList[j+1][i])
             self.activationVectorsAtLayerList[j] = copy.deepcopy(inputVector)
 
-        return inputVector[0, 0]
+        return inputVector
 
     def __sigmoid(self, inputVal):
         try:
@@ -234,8 +246,16 @@ class MultilayerPerceptron:
         successes = 0
         total=0
         for i in range(numInputs):
-            prediction = int(round(self.__prediction(testInputs[i])))
-            if prediction == testClassLabelList[i]:
+            predictionVector = self.__prediction(testInputs[i])
+            partialSuccesses = 0
+            #print 'predictionVector', predictionVector, 'prediction', testClassLabelList[i]
+            for j in range(len(predictionVector)):
+                if j == testClassLabelList[i] and int(round(predictionVector[j])) == 1:
+                    partialSuccesses+=1
+                elif j != testClassLabelList[i] and int(round(predictionVector[j])) == 0:
+                    partialSuccesses+=1
+            #print 'partialSuccesses', partialSuccesses
+            if partialSuccesses == 5:
                 successes+=1
             total+=1
 
@@ -253,7 +273,7 @@ def main():
     testFilename = sys.argv[2]
     isDebugMode = True
     hiddenLayers = 1
-    alpha = 0.2
+    alpha = 0.1
     numEpochs = 1
     #initialize the network
     neuralNet = MultilayerPerceptron(trainingFilename, hiddenLayers, isDebugMode)
